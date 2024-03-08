@@ -1,0 +1,66 @@
+[2024-03-01 16:50:49,801] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:50:49,802] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:51:19,724] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:51:19,724] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:51:49,704] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:51:49,705] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:52:19,731] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:52:19,731] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:53:09,717] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:53:09,718] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:53:59,702] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:53:59,703] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:54:49,703] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:54:49,704] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:55:39,705] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:55:39,706] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:56:29,724] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:56:29,724] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:57:19,712] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:57:19,712] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
+[2024-03-01 16:58:09,708] [ERROR] [auto_inspect.py:757] 'token'
+[2024-03-01 16:58:09,709] [ERROR] [auto_inspect.py:758] Traceback (most recent call last):
+  File "D:\PycharmProjects\inspect_admin\index\crond\auto_inspect.py", line 740, in auto_inspect_platform_info
+    if rows[token_name_list[-1]]:
+KeyError: 'token'
+
