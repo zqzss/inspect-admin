@@ -239,7 +239,9 @@ JWT_EXPIRATION_HOURS = 1  # Token 过期时间（小时）
 
 #巡检间隔时间
 inspect_interval_time = 10
-#巡检的请求超时时间
-request_timeout = 5
+#请求超时时间
+request_timeout = 3
 #巡检的重新请求次数
 request_max_retries = 1
+#一次巡检的请求最大时间
+request_max_time = 9

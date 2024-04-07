@@ -1,6 +1,7 @@
 import logging
 import os
 import smtplib
+import time
 
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -9,6 +10,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import pytz
+import urllib3
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -18,7 +20,7 @@ from requests.adapters import HTTPAdapter
 import json
 from django.forms import model_to_dict
 from cryptography.fernet import Fernet
-from inspect_admin.settings import inspect_interval_time,request_timeout,request_max_retries
+from inspect_admin.settings import inspect_interval_time,request_timeout,request_max_retries,request_max_time
 
 # 创建记录器
 logger = logging.getLogger('simple')
@@ -36,6 +38,9 @@ logger_error = logging.getLogger('error')
 # ch.setFormatter(formatter)
 # # 将处理器添加到记录器
 # logger.addHandler(ch)
+
+# 禁止https证书警告输出
+urllib3.disable_warnings()
 
 # request请求超时时间
 timeout = request_timeout
@@ -108,7 +113,8 @@ def auto_inspect_platform_item(platform_info_inst):
             # 请求头添加token认证信息
             headers_dict[auth_name] = auth_value
             try:
-                res = s.get(web_url, headers=headers_dict,timeout=timeout)
+                # res = s.get(web_url, headers=headers_dict,timeout=timeout)
+                res = send_request_with_retry("get",web_url,headers=headers_dict)
                 res.encoding = "utf-8"
                 response_code = res.status_code
                 if (response_code == 200 or response_code == 301):
@@ -156,7 +162,8 @@ def auto_inspect_platform_item(platform_info_inst):
             # 判断请求后端接口的token是否需要加前缀，如加"Bearer "。根据content-type内容决定发送表单数据还是json数据
             if "json" in headers:
                 try:
-                    res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                    # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
                     res_dict = json.loads(res.text)
 
                     if 200 not in res_dict.values() and 0 not in res_dict.values():
@@ -169,7 +176,8 @@ def auto_inspect_platform_item(platform_info_inst):
                         res.close()
             else:
                 try:
-                    res = eval("s." + requestMethod.lower() + "(data_itf, headers=headers_dict,timeout=timeout)")
+                    # res = eval("s." + requestMethod.lower() + "(data_itf, headers=headers_dict,timeout=timeout)")
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
                     res_dict = json.loads(res.text)
                     if 200 not in res_dict.values() and 0 not in res_dict.values():
                         auth_value = "Bearer " + origin_auth_value
@@ -182,7 +190,8 @@ def auto_inspect_platform_item(platform_info_inst):
             # 更新请求头的token值
             headers_dict[auth_name] = auth_value
             try:
-                res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
                 # 后端接口返回的数据转换json报错说明接口不可用
                 res_dict = json.loads(res.text)
                 # 后端接口返回的数据转换json的值不包含200或0,则说明调用接口失败，巡检项不可用
@@ -231,7 +240,8 @@ def auto_inspect_platform_item(platform_info_inst):
             # 判断请求后端接口的token是否需要加前缀，如加"Bearer "。根据content-type内容决定发送表单数据还是json数据
             if "json" in headers:
                 try:
-                    res = eval("s." + requestMethod.lower() + "(data_itf, headers=headers_dict,timeout=timeout)")
+                    # res = eval("s." + requestMethod.lower() + "(data_itf, headers=headers_dict,timeout=timeout)")
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
                     res_dict = json.loads(res.text)
                     if 200 not in res_dict.values() and 0 not in res_dict.values():
                         auth_value = "Bearer " + origin_auth_value
@@ -245,7 +255,8 @@ def auto_inspect_platform_item(platform_info_inst):
                         res.close()
             else:
                 try:
-                    res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                    # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
                     res_dict = json.loads(res.text)
                     if 200 not in res_dict.values() and 0 not in res_dict.values():
                         auth_value = "Bearer " + origin_auth_value
@@ -263,7 +274,8 @@ def auto_inspect_platform_item(platform_info_inst):
                 # 把用户输入的设备在线字段路径转换为列表。如"/data/rows/status"转换成["data","rows","status"]
                 device_online_field_list = [s for s in device_online_field.split("/") if s != '']
                 try:
-                    res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                    # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
                     Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=0)
                 except Exception as e:
                     retry_num = item.retry_num
@@ -624,7 +636,8 @@ def auto_inspect_platform_info(platform_info_inst):
     res = None
 
     try:
-        res = s.get(login_html,headers=headers,timeout=timeout)
+        # res = s.get(login_html,headers=headers,timeout=timeout)
+        res = send_request_with_retry("get", login_html, headers )
         res.encoding = "utf-8"
         response_code = res.status_code
         if(response_code == 200 or response_code == 301):
@@ -699,7 +712,8 @@ def auto_inspect_platform_info(platform_info_inst):
         # 根据content-type内容发送表单数据还是json数据
         if "json" in headers_str:
             try:
-                res = s.post(login_itf, headers=headers, data=json.dumps(post_dict),timeout=timeout)
+                # res = s.post(login_itf, headers=headers, data=json.dumps(post_dict),timeout=timeout)
+                res = send_request_with_retry("post", login_itf, headers=headers, data=json.dumps(post_dict))
                 Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=0)
             except Exception as e:
                 retry_num = platform_info_inst.retry_num
@@ -769,7 +783,8 @@ def auto_inspect_platform_info(platform_info_inst):
 
         else:
             try:
-                res = s.post(login_itf, headers=headers, data=post_dict,timeout=timeout)
+                # res = s.post(login_itf, headers=headers, data=post_dict,timeout=timeout)
+                res = send_request_with_retry("post",login_itf,headers,data=post_dict)
                 Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=0)
             except Exception as e:
                 retry_num = platform_info_inst.retry_num
@@ -946,6 +961,39 @@ def send_wechat_md(webhook, content,enable):
     logging.info("企业微信发送消息: "+content)
     logging.info("企业微信告警返回结果: "+info.text)
     info.close()
+
+def send_request_with_retry(method, url, headers, data=None):
+    timeout = request_timeout  # 请求超时时间（秒）
+    total_timeout = request_max_time  # 总超时时间（秒）
+    start_time = time.time()
+    if method == "get":
+        while True:
+            try:
+                response = requests.get(url,headers=headers,timeout=timeout, verify=False)
+                if response.status_code == 200 or response.status_code == 301 or response.status_code == 401 or response.status_code == 400:
+                    return response
+            except Exception as e:
+                nothing = None
+
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= total_timeout:
+                break
+            time.sleep(0.3)
+    elif method == "post":
+        while True:
+            try:
+                response = requests.post(url, headers=headers,data=data,timeout=timeout, verify=False)
+                if response.status_code == 200 or response.status_code == 301 or response.status_code == 401 or response.status_code == 400:
+                    return response
+            except Exception as e:
+                nothing = None
+
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= total_timeout:
+                break
+            time.sleep(0.3)
+    print("response.status_code: ",response.status_code)
+    raise ConnectionError("连接异常：请求超时！")
 
 def mid_task(platform_info_inst):
     try:
