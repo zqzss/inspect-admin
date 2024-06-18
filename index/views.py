@@ -48,8 +48,8 @@ def login(request):
         pwd_bool = check_password(password, mpwd)
 
         if pwd_bool:
-            # 设置过期时间为当前时间 + 30 分钟
-            expiry_time = datetime.utcnow() + timedelta(minutes=30)
+            # 设置过期时间为当前时间 + 180 分钟
+            expiry_time = datetime.utcnow() + timedelta(minutes=180)
             # 构建 payload
             payload = {
                 'user_id': user["id"],
@@ -204,9 +204,8 @@ def platformInspectItem(request):
     inspectTypeName = data.get('inspectTypeName')
     web_url = data.get('webUrl')
     data_itf = data.get('dataItf')
-    intervalTime = data.get('interval_time')
-    if not intervalTime:
-        intervalTime = 30
+    intervalTime = data.get('interval_time',30)
+    
     platform_name = data.get('platformName')
     device_name = data.get('device_name')
     device_online_field = data.get('device_online_field')
@@ -218,6 +217,8 @@ def platformInspectItem(request):
     requestMethod = data.get('request_method')
     ignore_devices = data.get('ignore_devices')
     notice_ignore_not_online_num = data.get('notice_ignore_not_online_num') if data.get('notice_ignore_not_online_num') else 0
+    is_notice = int(data.get('is_notice',1))
+
 
     requestMethodUpper = None
     if requestMethod != None:
@@ -253,7 +254,7 @@ def platformInspectItem(request):
                                                      request_method=requestMethodUpper,
                                                      device_online_value=device_online_value,
                                                      device_online_field=device_online_field, device_name=device_name,ignore_devices=ignore_devices,notice_ignore_not_online_num=notice_ignore_not_online_num,
-                                                     platform_inspect_inspect_name=platform_inspect_inspect_name)
+                                                     platform_inspect_inspect_name=platform_inspect_inspect_name,is_notice=is_notice)
                 result = Result(200, "", "新添巡检项成功！")
             except Exception as e:
                 traceback.print_exc()
@@ -268,6 +269,7 @@ def platformInspectItem(request):
             logging.error(str(e))
             result = Result(500, "", "删除巡检项失败！" + str(e))
     elif request.method == 'PUT':
+        print("data.get('interval_time')", data.get('interval_time'))
         print("notice_ignore_not_online_num: ", notice_ignore_not_online_num)
         if inspectTypeName != "页面" and requestMethodUpper not in ["GET", "POST", "DELETE", "PUT"]:
             result = Result(500, "", "修改巡检项失败！请求方法不合法")
@@ -296,7 +298,7 @@ def platformInspectItem(request):
                                                                    device_online_value=device_online_value,
                                                                    device_online_field=device_online_field,
                                                                    device_name=device_name,ignore_devices=ignore_devices,notice_ignore_not_online_num=notice_ignore_not_online_num
-                                                                   ,platform_inspect_inspect_name=platform_inspect_inspect_name)
+                                                                   ,platform_inspect_inspect_name=platform_inspect_inspect_name,is_notice=is_notice)
                 result = Result(200, "", "修改巡检项成功！")
             except Exception as e:
                 logging.error(str(e))

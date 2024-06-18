@@ -232,16 +232,25 @@ LOGGING = {
     }
 }
 
+# 自定义配置
+
+# 邮箱配置
+sender_email = "lufeixiang@seewintech.com"
+sender_password = "2000919Lfx"
 
 JWT_SECRET = 'abc123'  # 替换为一个用于签名 JWT 的密钥
 JWT_ALGORITHM = 'HS256'  # 使用的 JWT 算法
-JWT_EXPIRATION_HOURS = 1  # Token 过期时间（小时）
+JWT_EXPIRATION_HOURS = 3  # Token 过期时间（小时）
 
-#巡检间隔时间
+#巡检间隔时间，单位是s
 inspect_interval_time = 10
-#请求超时时间
+#http请求超时时间，单位是s
 request_timeout = 3
-#巡检的重新请求次数
+#http请求失败后重新请求次数
 request_max_retries = 1
-#一次巡检的请求最大时间
-request_max_time = 9
+#死循环等待请求成功的最大时间,单位是s
+while_max_time = 9
+
+#不巡检时间段的开始时间
+not_inspect_start_timeRange = "09:00"
+not_inspect_end_timeRange = "09:30"

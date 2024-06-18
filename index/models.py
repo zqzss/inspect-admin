@@ -49,6 +49,7 @@ class Platform_Inspect_Item(models.Model):
     interval_time = models.IntegerField(default=1, verbose_name="通知间隔时间，单位(分钟)", null=True, blank=True)
     last_notice_time = models.CharField(max_length=64, verbose_name="上一次通知时间",null=True, blank=True)
     enabled = models.IntegerField(default=1, verbose_name="是否可用,0不可以，1可用,2告警")
+    is_notice = models.IntegerField(default=1, verbose_name="是否告警时通知,0不通知，1通知")
     disabled_reason = models.TextField(verbose_name="不可用或告警的原因", null=True, blank=True)
     device_name = models.CharField(max_length=64, verbose_name="设备名称字段", null=True, blank=True)
     device_online_field = models.CharField(max_length=64, verbose_name="设备在线字段", null=True, blank=True)
