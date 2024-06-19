@@ -200,7 +200,7 @@ def platformInspectItem(request):
     else:
         data = {}
     id = data.get('id')
-    platform_inspect_inspect_name = data.get('platform_inspect_inspect_name',"")
+    platform_inspect_item_name = data.get('platform_inspect_item_name',"")
     inspectTypeName = data.get('inspectTypeName')
     web_url = data.get('webUrl')
     data_itf = data.get('dataItf')
@@ -254,7 +254,7 @@ def platformInspectItem(request):
                                                      request_method=requestMethodUpper,
                                                      device_online_value=device_online_value,
                                                      device_online_field=device_online_field, device_name=device_name,ignore_devices=ignore_devices,notice_ignore_not_online_num=notice_ignore_not_online_num,
-                                                     platform_inspect_inspect_name=platform_inspect_inspect_name,is_notice=is_notice)
+                                                     platform_inspect_item_name=platform_inspect_item_name,is_notice=is_notice)
                 result = Result(200, "", "新添巡检项成功！")
             except Exception as e:
                 traceback.print_exc()
@@ -298,7 +298,7 @@ def platformInspectItem(request):
                                                                    device_online_value=device_online_value,
                                                                    device_online_field=device_online_field,
                                                                    device_name=device_name,ignore_devices=ignore_devices,notice_ignore_not_online_num=notice_ignore_not_online_num
-                                                                   ,platform_inspect_inspect_name=platform_inspect_inspect_name,is_notice=is_notice)
+                                                                   ,platform_inspect_item_name=platform_inspect_item_name,is_notice=is_notice)
                 result = Result(200, "", "修改巡检项成功！")
             except Exception as e:
                 logging.error(str(e))

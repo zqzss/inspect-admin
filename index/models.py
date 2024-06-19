@@ -39,7 +39,7 @@ class Platform_Inspect_Item(models.Model):
     id = models.AutoField(primary_key=True)
     inspectTypeId = models.ForeignKey(to="InspectType", to_field="id", on_delete=models.CASCADE,
                                       related_name="inspectTypeId", null=True, blank=True, db_column="inspectTypeId")
-    platform_inspect_inspect_name = models.CharField(max_length=32, verbose_name="平台巡检项名称", null=True, blank=True)
+    platform_inspect_item_name = models.CharField(max_length=32, verbose_name="平台巡检项名称", null=True, blank=True)
     webUrl = models.URLField(verbose_name="前端页面地址", null=True, blank=True)
     request_method = models.CharField(max_length=8, verbose_name="请求方法", null=True, blank=True)
     dataItf = models.CharField(max_length=128, verbose_name="数据接口", null=True, blank=True)
