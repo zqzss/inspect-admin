@@ -1063,7 +1063,7 @@ def send_wechat_md(webhook, content, enable):
     logger.info("企业微信告警返回结果: " + res.text)
     res_data = json.loads(res.text)
     if res_data["errcode"] and res_data["errcode"] != 0:
-        payload = json.dumps({"msgtype": "markdown", "markdown": "告警重发\n" + data["markdown"]["content"][:2000]})
+        payload = json.dumps({"msgtype": "markdown", "markdown": {"content" : "告警重发\n" + data["markdown"]["content"][:2000]}})
         res = s.post(url=webhook, data=payload, headers=header, timeout=timeout)
         logger_error.error("告警重发\n" + "企业微信发送消息: " + payload)
         logger_error.error("告警重发\n" + "企业微信告警返回结果: " + res.text)
