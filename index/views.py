@@ -88,6 +88,7 @@ def platform_info(request):
     token_name = data.get('token_name')
     interval_time = data.get('interval_time') if data.get('interval_time') != None else 30
     max_retry_num = data.get('max_retry_num') if data.get('max_retry_num') != None else 0
+    is_notice = data.get("is_notice") if data.get("is_notice") != None else 1
     result = None
 
     # 生成密钥
@@ -112,7 +113,7 @@ def platform_info(request):
                 headers = None
             Platform_Info.objects.create(platform_name=platform_name, username=username, password=password,
                                          login_html=login_html, login_itf=login_itf, headers=headers,
-                                         auth_name=auth_name, token_name=token_name, interval_time=interval_time,max_retry_num=max_retry_num)
+                                         auth_name=auth_name, token_name=token_name, interval_time=interval_time,max_retry_num=max_retry_num,is_notice=is_notice)
             result = Result(200, "", "新添平台成功！")
         except Exception as e:
             logging.error(str(e))
@@ -144,7 +145,7 @@ def platform_info(request):
             Platform_Info.objects.filter(id=id).update(platform_name=platform_name, username=username,
                                                        password=password,login_html=login_html,
                                                        login_itf=login_itf, headers=headers, auth_name=auth_name,
-                                                       auth_value=auth_value, interval_time=interval_time,token_name=token_name,max_retry_num=max_retry_num)
+                                                       auth_value=auth_value, interval_time=interval_time,token_name=token_name,max_retry_num=max_retry_num,is_notice=is_notice)
 
             result = Result(200, "", "修改平台成功！")
         except Exception as e:

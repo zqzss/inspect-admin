@@ -24,7 +24,7 @@ class Platform_Info(models.Model):
     disabled_reason = models.TextField(verbose_name="不可用的原因", null=True, blank=True)
     max_retry_num = models.IntegerField(default=0, verbose_name="请求失败后，最大请求重试次数", null=True, blank=True)
     retry_num = models.IntegerField(default=0, verbose_name="请求失败次数", null=True, blank=True)
-
+    is_notice = models.IntegerField(default=1, verbose_name="是否告警通知,0不是，1是")
     class Meta:
         db_table = "platform_info"
 

@@ -245,12 +245,13 @@ JWT_EXPIRATION_HOURS = 3  # Token 过期时间（小时）
 #巡检间隔时间，单位是s
 inspect_interval_time = 10
 #http请求超时时间，单位是s
-request_timeout = 3
+request_timeout = 6
 #http请求失败后重新请求次数
-request_max_retries = 1
+request_max_retries = 2
 #死循环等待请求成功的最大时间,单位是s
 while_max_time = 9
 
 #不巡检时间段的开始时间
-not_inspect_start_timeRange = "09:00"
-not_inspect_end_timeRange = "09:30"
+# 09:00   09:30
+not_inspect_start_timeRange = ""
+not_inspect_end_timeRange = ""

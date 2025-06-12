@@ -15,6 +15,8 @@ import urllib3
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from index.models import *
+from index.utils.methods import *
+
 import requests
 from requests.adapters import HTTPAdapter
 import json
@@ -126,6 +128,11 @@ def auto_inspect_platform_item(platform_info_inst):
 
         # 防止requests发生报错后res变量未定义
         res = None
+
+        # 重试巡检次数
+        retry_num = 0
+        max_retry_num = -1
+
         # 巡检类型是页面
         if inspect_type == "页面":
             try:
@@ -137,23 +144,13 @@ def auto_inspect_platform_item(platform_info_inst):
                     response_message = "前端后台页面正常"
                     enabled = 1
                 else:
-                    response_message = res.text
-                    enabled = 0
-                Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=0)
+                    enabled, response_code, response_message,retry_num = RequestNot200(res, platform_info_inst)
 
             except Exception as e:
-                retry_num = item.retry_num
-                max_retry_num = platform_info_inst.max_retry_num
-                if retry_num >= max_retry_num:
-                    logger_error.error(e)
-                    logger_error.error(traceback.format_exc())
-                    response_code = 500
-                    response_message = str(e)
-                    traceback.print_exc()
-                    enabled = 0
-                else:
-                    Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=retry_num + 1)
-                    return
+                logger_error.error(e)
+                logger_error.error(traceback.format_exc())
+                traceback.print_exc()
+                enabled, response_code, response_message, retry_num = RequestException(res, platform_info_inst, e)
 
             finally:
                 # 关闭连接
@@ -168,80 +165,67 @@ def auto_inspect_platform_item(platform_info_inst):
             if auth_value:
                 origin_auth_value = auth_value
             # 判断请求后端接口的token是否需要加前缀，如加"Bearer "。根据content-type内容决定发送表单数据还是json数据
-            if "json" in headers:
-                try:
+            try:
+                if "json" in headers:
                     # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
                     res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
-                    res_dict = json.loads(res.text)
-                    # 200或0表示成功，写死
-                    if 200 not in res_dict.values() and 0 not in res_dict.values():
-                        auth_value = "Bearer " + origin_auth_value
-                except Exception as e:
-                    auth_value = "Bearer " + origin_auth_value
-                finally:
-                    # 关闭连接
-                    if res is not None:
-                        res.close()
-            else:
-                try:
+                else:
                     # res = eval("s." + requestMethod.lower() + "(data_itf, headers=headers_dict,timeout=timeout)")
-                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
-                    res_dict = json.loads(res.text)
-                    # 200或0表示成功，写死
-                    if 200 not in res_dict.values() and 0 not in res_dict.values():
-                        auth_value = "Bearer " + origin_auth_value
-                except Exception as e:
+                    res = eval(
+                        "send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
+                res_dict = json.loads(res.text)
+                # 200或0表示成功，写死
+                if 200 not in res_dict.values() and 0 not in res_dict.values():
                     auth_value = "Bearer " + origin_auth_value
-                finally:
-                    # 关闭连接
-                    if res is not None:
-                        res.close()
+            except Exception as e:
+                auth_value = "Bearer " + origin_auth_value
+            finally:
+                # 关闭连接
+                if res is not None:
+                    res.close()
+
             # 更新请求头的token值
             headers_dict[auth_name] = auth_value
 
             try:
-                # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
-                res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
-            except Exception as e:
-                retry_num = item.retry_num
-                max_retry_num = platform_info_inst.max_retry_num
-                if retry_num >= max_retry_num:
-                    logger_error.error(e)
-                    logger_error.error(traceback.format_exc())
-                    traceback.print_exc()
-                    response_code = 500
-                    response_message = str(e)
-                    enabled = 0
+                if "json" in headers:
+                    # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
                 else:
-                    Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=retry_num + 1)
-                    return
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
 
-            try:
-                # 后端接口返回的数据转换json报错说明接口不可用
-                res_dict = json.loads(res.text)
-                # 后端接口返回的数据转换json的值不包含200或0,则说明调用接口失败，巡检项不可用
-                if 200 in res_dict.values() or 0 in res_dict.values():
-                    response_code = 200
-                    response_message = "后端数据接口正常"
+                res.encoding = "utf-8"
+                response_code = res.status_code
+                if (0 <= response_code < 400):
+                    response_message = "前端后台接口正常"
                     enabled = 1
-                    Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=0)
                 else:
-                    response_code = 500
-                    response_message = str(res_dict)
-                    enabled = 0
-                    Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=0)
+                    enabled, response_code, response_message,retry_num = RequestNot200(res, platform_info_inst)
             except Exception as e:
                 logger_error.error(e)
                 logger_error.error(traceback.format_exc())
                 traceback.print_exc()
-                response_code = 500
-                # 有可能json解析错误
-                if res.text:
-                    response_message = str(res.text)
-                else:
-                    response_message = str(e)
-                enabled = 0
-                Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=0)
+                enabled, response_code, response_message, retry_num = RequestException(res, platform_info_inst, e)
+
+            # 接口异常则不解析
+            if response_code != 500:
+                try:
+                    # 后端接口返回的数据转换json报错说明接口不可用
+                    res_dict = json.loads(res.text)
+                    # 后端接口返回的数据转换json的值不包含200或0,则说明调用接口失败，巡检项不可用
+                    if 200 in res_dict.values() or 0 in res_dict.values():
+                        response_code = 200
+                        response_message = "后端数据接口正常"
+                        enabled = 1
+                    else:
+                        enabled, response_code, response_message,retry_num = RequestNot200(res, platform_info_inst)
+
+                except Exception as e:
+                    logger_error.error(e)
+                    logger_error.error(traceback.format_exc())
+                    traceback.print_exc()
+                    enabled, response_code, response_message, retry_num = RequestException(res, platform_info_inst, e)
+
             # 关闭连接
             if res is not None:
                 res.close()
@@ -255,124 +239,108 @@ def auto_inspect_platform_item(platform_info_inst):
             if auth_value:
                 origin_auth_value = auth_value
             # 判断请求后端接口的token是否需要加前缀，如加"Bearer "。根据content-type内容决定发送表单数据还是json数据
-            if "json" in headers:
-                try:
-                    # res = eval("s." + requestMethod.lower() + "(data_itf, headers=headers_dict,timeout=timeout)")
-                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
-                    res_dict = json.loads(res.text)
-                    # 200或0表示成功，写死
-                    if 200 not in res_dict.values() and 0 not in res_dict.values():
-                        auth_value = "Bearer " + origin_auth_value
-                    else:
-                        auth_value = origin_auth_value
-                except Exception as e:
-                    auth_value = "Bearer " + origin_auth_value
-                finally:
-                    # 关闭连接
-                    if res is not None:
-                        res.close()
-            else:
-                try:
+            try:
+                if "json" in headers:
                     # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
-                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
-                    res_dict = json.loads(res.text)
-                    # 200或0表示成功，写死
-                    if 200 not in res_dict.values() and 0 not in res_dict.values():
-                        auth_value = "Bearer " + origin_auth_value
-                    else:
-                        auth_value = origin_auth_value
-                except Exception as e:
+                    res = eval(
+                        "send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
+                else:
+                    # res = eval("s." + requestMethod.lower() + "(data_itf, headers=headers_dict,timeout=timeout)")
+                    res = eval(
+                        "send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
+                res_dict = json.loads(res.text)
+                # 200或0表示成功，写死
+                if 200 not in res_dict.values() and 0 not in res_dict.values():
                     auth_value = "Bearer " + origin_auth_value
-                finally:
-                    # 关闭连接
-                    if res is not None:
-                        res.close()
+            except Exception as e:
+                auth_value = "Bearer " + origin_auth_value
+            finally:
+                # 关闭连接
+                if res is not None:
+                    res.close()
             # 更新请求头的token值
             headers_dict[auth_name] = auth_value
 
             # 把用户输入的设备在线字段路径转换为列表。如"/data/rows/status"转换成["data","rows","status"]
             device_online_field_list = [s for s in device_online_field.split("/") if s != '']
+
             try:
-                # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
-                res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
-                Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=0)
-            except Exception as e:
-                retry_num = item.retry_num
-                max_retry_num = platform_info_inst.max_retry_num
-                if retry_num >= max_retry_num:
-                    logger_error.error(e)
-                    logger_error.error(traceback.format_exc())
-                    traceback.print_exc()
-                    response_code = 500
-                    response_message = str(e)
-                    enabled = 0
+
+                if "json" in headers:
+                    # res = eval("s." + requestMethod.lower() + "(data_itf,headers=headers_dict,timeout=timeout)")
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
                 else:
-                    Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=retry_num + 1)
-                    return
-            try:
-                # 后端接口返回的数据转换json报错说明接口不可用
-                res_dict = json.loads(res.text)
-                # 后端接口返回的数据转换json的值不包含200或0,则说明调用接口失败，巡检项不可用
-                if 200 in res_dict.values() or 0 in res_dict.values():
-                    response_code = 200
-                    # 设备在线信息列表
-                    rows = []
-                    # 接口返回的设备总个数
-                    device_count = 0
-                    # 接口返回的在线设备个数
-                    device_online_count = 0
-                    # 接口返回的不在线设备个数
-                    device_not_online_count = 0
-                    # 接口返回的不在线设备名称列表
-                    device_not_online_nameList = []
-                    # 根据设备在线字段路径找到接口返回的json数据里的设备信息列表
-                    rows = res_dict
-                    for i in range(len(device_online_field_list) - 1):
-                        rows = rows[device_online_field_list[i]]
-                    # 用户输入的设备在线字段路径的最后一个字段
-                    last_device_online_field = device_online_field_list[-1]
-                    for row in rows:
-                        device_count += 1
-                        if int(row[last_device_online_field]) != int(device_online_value):
-                            device_not_online_count += 1
-                            device_not_online_nameList.append(row[device_name])
-                    if device_not_online_count > 0:
-                        enabled = 2
-                        # 201表示巡检记录的告警
-                        response_code = 201
-                        response_message = platform_info_inst.platform_name + " - 设备在线查询接口" + data_itf + " - 返回设备总个数: " + str(
-                            device_count) + " - 不在线个数:" + str(
-                            device_not_online_count) + " - 不在线设备名称: " + str(device_not_online_nameList)
-                        # 更新平台巡检项的enable为2表示警告
-                        Platform_Inspect_Item.objects.filter(id=item.id).update(enabled=enabled,
-                                                                                disabled_reason=response_message)
-                    else:
-                        response_code = 200
-                        response_message = platform_info_inst.platform_name + " - 设备在线查询接口" + data_itf + " - 返回设备总个数: " + str(
-                            device_count) + " - 不在线个数:" + str(
-                            device_not_online_count) + " - 不在线设备名称: " + str(device_not_online_nameList)
-                        enabled = 1
-                    #  更新上次不在线设备名称列表
-                    Platform_Inspect_Item.objects.filter(id=item.id).update(
-                        last_not_online_device=device_not_online_nameList)
+                    res = eval("send_request_with_retry('" + requestMethod.lower() + "',data_itf,headers=headers_dict)")
+
+                res.encoding = "utf-8"
+                response_code = res.status_code
+                if (0 <= response_code < 400):
+                    response_message = "前端后台接口正常"
+                    enabled = 1
                 else:
-                    response_code = 500
-                    response_message = str(res_dict)
-                    enabled = 0
-                    Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=0)
+                    enabled, response_code, response_message,retry_num = RequestNot200(res, platform_info_inst)
+
             except Exception as e:
                 logger_error.error(e)
                 logger_error.error(traceback.format_exc())
                 traceback.print_exc()
-                response_code = 500
-                # 有可能json解析错误
-                if res.text:
-                    response_message = str(res.text)
-                else:
-                    response_message = str(e)
-                enabled = 0
-                Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=0)
+                enabled, response_code, response_message, retry_num = RequestException(res, platform_info_inst, e)
 
+            if response_code != 500:
+                try:
+                    # 后端接口返回的数据转换json报错说明接口不可用
+                    res_dict = json.loads(res.text)
+                    # 后端接口返回的数据转换json的值不包含200或0,则说明调用接口失败，巡检项不可用
+                    if 200 in res_dict.values() or 0 in res_dict.values():
+                        response_code = 200
+                        # 设备在线信息列表
+                        rows = []
+                        # 接口返回的设备总个数
+                        device_count = 0
+                        # 接口返回的在线设备个数
+                        device_online_count = 0
+                        # 接口返回的不在线设备个数
+                        device_not_online_count = 0
+                        # 接口返回的不在线设备名称列表
+                        device_not_online_nameList = []
+                        # 根据设备在线字段路径找到接口返回的json数据里的设备信息列表
+                        rows = res_dict
+                        for i in range(len(device_online_field_list) - 1):
+                            rows = rows[device_online_field_list[i]]
+                        # 用户输入的设备在线字段路径的最后一个字段
+                        last_device_online_field = device_online_field_list[-1]
+                        for row in rows:
+                            device_count += 1
+                            if int(row[last_device_online_field]) != int(device_online_value):
+                                device_not_online_count += 1
+                                device_not_online_nameList.append(row[device_name])
+                        if device_not_online_count > 0:
+                            enabled = 2
+                            # 201表示巡检记录的告警
+                            response_code = 201
+                            response_message = platform_info_inst.platform_name + " - 设备在线查询接口" + data_itf + " - 返回设备总个数: " + str(
+                                device_count) + " - 不在线个数:" + str(
+                                device_not_online_count) + " - 不在线设备名称: " + str(device_not_online_nameList)
+                            # 更新平台巡检项的enable为2表示警告
+                            Platform_Inspect_Item.objects.filter(id=item.id).update(enabled=enabled,
+                                                                                    disabled_reason=response_message)
+                        else:
+                            response_code = 200
+                            response_message = platform_info_inst.platform_name + " - 设备在线查询接口" + data_itf + " - 返回设备总个数: " + str(
+                                device_count) + " - 不在线个数:" + str(
+                                device_not_online_count) + " - 不在线设备名称: " + str(device_not_online_nameList)
+                            enabled = 1
+                        #  更新上次不在线设备名称列表
+                        Platform_Inspect_Item.objects.filter(id=item.id).update(
+                            last_not_online_device=device_not_online_nameList)
+                    else:
+                        enabled, response_code, response_message,retry_num = RequestNot200(res, platform_info_inst)
+
+                except Exception as e:
+                    logger_error.error(e)
+                    logger_error.error(traceback.format_exc())
+                    traceback.print_exc()
+                    enabled, response_code, response_message, retry_num = RequestException(res, platform_info_inst, e)
             # 关闭连接
             if res is not None:
                 res.close()
@@ -383,6 +351,13 @@ def auto_inspect_platform_item(platform_info_inst):
         Inspect_Record.objects.create(inspect_time=formatted_time, platform_info_id=platform_info_inst,
                                       platform_inspect_id=item,
                                       response_code=response_code, response_message=response_message)
+
+        # 更新重试巡检次数
+        Platform_Inspect_Item.objects.filter(id=item.id).update(retry_num=retry_num)
+
+        # 如果还在重试巡检，则不发送消息通知
+        if int(retry_num) > 0 and int(retry_num) <= int(max_retry_num):
+            return
 
         # 如果平台巡检项状态是可用
         if enabled == 1:
@@ -716,8 +691,8 @@ def auto_inspect_platform_item(platform_info_inst):
 
 # 巡检平台登录
 def auto_inspect_platform_info(platform_info_inst):
-    # 处理请求header格式
     platform_info_one = model_to_dict(platform_info_inst)
+
     login_html = platform_info_one['login_html']
     # 数据库的header字段有'，需要转换"。如可能存在值{'':''}需要变成{}，不然请求报错
     try:
@@ -747,7 +722,9 @@ def auto_inspect_platform_info(platform_info_inst):
     enabled = 1
     # 防止requests发生报错后res变量未定义
     res = None
-
+    # 重试巡检次数
+    retry_num = 0
+    max_retry_num = -1
     # 巡检html登录页面
     try:
         # res = s.get(login_html,headers=headers,timeout=timeout)
@@ -758,24 +735,14 @@ def auto_inspect_platform_info(platform_info_inst):
             response_message = "前端登录页面正常"
             enabled = 1
         else:
-            response_code = res.status_code
-            response_message = res.text
-            enabled = 0
-        Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=0)
+            enabled, response_code, response_message,retry_num = RequestNot200(res, platform_info_inst)
+
     except Exception as e:
-        # 不可用状态的最大巡检次数
-        retry_num = platform_info_inst.retry_num
-        max_retry_num = platform_info_inst.max_retry_num
-        if retry_num >= max_retry_num:
-            logger_error.error(e)
-            logger_error.error(traceback.format_exc())
-            traceback.print_exc()
-            enabled = 0
-            response_code = 500
-            response_message = str(e)
-        else:
-            Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=retry_num + 1)
-            return
+        logger_error.error(e)
+        logger_error.error(traceback.format_exc())
+        traceback.print_exc()
+        enabled, response_code, response_message,retry_num = RequestException(res, platform_info_inst, e)
+
     finally:
         # 关闭连接
         if res is not None:
@@ -783,8 +750,8 @@ def auto_inspect_platform_info(platform_info_inst):
     logger.info(str(platform_info_one["platform_name"]) + " - 前端登录页面: " + login_html + " - 巡检结果: " + str(
         response_message))
 
-    # 如果登录页面巡检结果不可用，则不巡检登录接口
-    if enabled == 1:
+    # 如果登录页面巡检结果不可用并且是重试巡检，则不巡检登录接口
+    if enabled == 1 and int(retry_num) == 0:
         # 获取平台属性
         auth_name = platform_info_one['auth_name']
         auth_value = None
@@ -817,29 +784,34 @@ def auto_inspect_platform_info(platform_info_inst):
         post_dict['terminal'] = 1
         # 演示-智慧管廊需要携带的字段字段
         post_dict['captcha'] = ""
+        # platform_info_inst = Platform_Info.objects.filter(id=platform_info_inst.id).first()[0]
 
         # 根据content-type内容发送表单数据还是json数据
-        if "json" in headers_str:
-            try:
+        try:
+            if "json" in headers_str:
                 # res = s.post(login_itf, headers=headers, data=json.dumps(post_dict),timeout=timeout)
                 res = send_request_with_retry("post", login_itf, headers=headers, data=json.dumps(post_dict))
-                Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=0)
-            except Exception as e:
-                retry_num = platform_info_inst.retry_num
-                max_retry_num = platform_info_inst.max_retry_num
-                if retry_num >= max_retry_num:
-                    logger_error.error(e)
-                    logger_error.error(traceback.format_exc())
-                    traceback.print_exc()
-                    response_code = 500
-                    response_message = str(e)
-                    enabled = 0
-                else:
-                    Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=retry_num + 1)
-                    return
+            else:
+                # res = s.post(login_itf, headers=headers, data=json.dumps(post_dict),timeout=timeout)
+                res = send_request_with_retry("post", login_itf, headers=headers, data=post_dict)
 
-            # 判断是否登录成功,登录成功后找到token值，找不到token值判断登录失败
-            res_dict = ""
+            res.encoding = "utf-8"
+            response_code = res.status_code
+            if (0 <= response_code < 400):
+                response_message = "后端登录接口正常"
+                enabled = 1
+            else:
+                enabled,response_code,response_message,retry_num = RequestNot200(res,platform_info_inst)
+
+        except Exception as e:
+            logger_error.error(e)
+            logger_error.error(traceback.format_exc())
+            traceback.print_exc()
+            enabled,response_code,response_message,retry_num = RequestException(res,platform_info_inst,e)
+
+        # 判断是否登录成功,登录成功则json解析，登录后找到token值，找不到token值判断登录失败
+        res_dict = ""
+        if response_code != 500:
             try:
                 res_dict = json.loads(res.text)
                 # 把token路径字符串变成列表，"/data/token"变成 ['data','token']
@@ -854,7 +826,7 @@ def auto_inspect_platform_info(platform_info_inst):
                 for i in range(len(token_name_list) - 1):
                     rows = rows[token_name_list[i]]
                 # 判断用户输入的token路径和接口返回的是否一致
-                if rows[token_name_list[-1]]:
+                if token_name_list[-1] in rows:
                     auth_value = rows[token_name_list[-1]]
                     response_code = 200
                     response_message = "后端登录接口正常"
@@ -862,91 +834,29 @@ def auto_inspect_platform_info(platform_info_inst):
                 else:
                     auth_value = None
                     response_code = 500
-                    response_message = "账号密码输入错误，或token路径不正确"
-                    enabled = 0
+                    response_message = "账号密码错误，或token路径不正确 "
+                    if res != None and res.text != None:
+                        response_message = response_message + res.text
+                    # 不可用状态的最大巡检次数
+                    retry_num = platform_info_inst.retry_num + 1
+                    max_retry_num = platform_info_inst.max_retry_num
+                    if retry_num > max_retry_num:
+                        enabled = 0
+
+                    else:
+                        enabled = 1
+
                 Platform_Info.objects.filter(id=platform_info_one["id"]).update(auth_value=auth_value)
 
             except Exception as e:
                 logger_error.error(e)
                 logger_error.error(traceback.format_exc())
                 traceback.print_exc()
-                response_code = 500
-                # 有可能json解析错误
-                if res.text:
-                    response_message = str(res.text)
-                else:
-                    response_message = str(e)
-                enabled = 0
-                Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=0)
+                enabled, response_code, response_message,retry_num = RequestException(res, platform_info_inst, e)
 
-            # 关闭连接
-            if res is not None:
-                res.close()
-
-        else:
-            try:
-                # res = s.post(login_itf, headers=headers, data=post_dict,timeout=timeout)
-                res = send_request_with_retry("post", login_itf, headers, data=post_dict)
-                Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=0)
-            except Exception as e:
-                retry_num = platform_info_inst.retry_num
-                max_retry_num = platform_info_inst.max_retry_num
-                if retry_num >= max_retry_num:
-                    logger_error.error(e)
-                    logger_error.error(traceback.format_exc())
-                    traceback.print_exc()
-                    response_code = 500
-                    response_message = str(e)
-                    enabled = 0
-                else:
-                    Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=retry_num + 1)
-                    return
-
-            # 判断是否登录成功,登录成功后找到token值，找不到token值判断登录失败
-            res_dict = ""
-            try:
-                res_dict = json.loads(res.text)
-
-                # 把token路径字符串变成列表，"/data/token"变成 ['data','token']
-                if "/" in token_name:
-                    # 如果变量中包含分隔符 "/", 则将其按照 "/" 分隔成一个列表
-                    token_name_list = [i for i in token_name.split("/") if i]
-                else:
-                    # 否则，直接将变量转换成一个列表
-                    token_name_list = [token_name]
-
-                # 根据token路径列表找到token字段所属的对象
-                rows = res_dict
-                for i in range(len(token_name_list) - 1):
-                    rows = rows[token_name_list[i]]
-                # 判断用户输入的token路径和接口返回的是否一致
-                if rows[token_name_list[-1]]:
-                    auth_value = rows[token_name_list[-1]]
-                    response_code = 200
-                    response_message = "后端登录接口正常"
-                    enabled = 1
-                else:
-                    auth_value = None
-                    response_code = 500
-                    response_message = "账号密码输入错误，或token路径不正确"
-                    enabled = 0
-                Platform_Info.objects.filter(id=platform_info_one["id"]).update(auth_value=auth_value)
-
-            except Exception as e:
-                logger_error.error(e)
-                logger_error.error(traceback.format_exc())
-                traceback.print_exc()
-                response_code = 500
-                # 有可能json解析错误
-                if res.text:
-                    response_message = str(res.text)
-                else:
-                    response_message = str(e)
-                enabled = 0
-                Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=0)
-            # 关闭连接
-            if res is not None:
-                res.close()
+        # 关闭连接
+        if res is not None:
+            res.close()
 
         logger.info(str(platform_info_one["platform_name"]) + " - 后端登录接口: " + login_itf + " - 巡检结果: " + str(
             response_message))
@@ -954,6 +864,17 @@ def auto_inspect_platform_info(platform_info_inst):
     # 记录巡检记录
     Inspect_Record.objects.create(inspect_time=formatted_time, platform_info_id=platform_info_inst,
                                   response_code=response_code, response_message=response_message)
+
+    # 更新重试巡检次数
+    Platform_Info.objects.filter(id=platform_info_inst.id).update(retry_num=retry_num)
+
+    # 如果还在重试巡检，则不发送消息通知
+    if int(retry_num) > 0 and (int(retry_num) <= int(max_retry_num)):
+        return
+
+    # 判断是否告警不通知
+    if platform_info_one["is_notice"] == 0:
+        return
 
     # 如果登录成功，则更新平台信息的状态可用,依据上一次的状态发通知
     if enabled == 1:
@@ -1078,31 +999,31 @@ def send_request_with_retry(method, url, headers, data=None):
     if method == "get":
         while True:
             try:
-                response = s.get(url, headers=headers, timeout=timeout, verify=False)
-                if 0 <= response.status_code < 400:
-                    return response
+                response = s.get(url, headers=headers, timeout=timeout, verify=False, allow_redirects=True)
+                # if 0 <= response.status_code < 500:
+                return response
             except Exception as e:
                 message = str(e)
-                logger_error.error(e)
-                logger_error.error(traceback.format_exc())
+                # logger_error.error(e)
+                # logger_error.error(traceback.format_exc())
             # 间隔时间，单位为s
             elapsed_time = time.time() - start_time
             if elapsed_time >= while_timeout:
                 if message == None:
                     message = response.text
                 break
-            time.sleep(0.3)
+            time.sleep(1)
     elif method == "post":
         while True:
             try:
                 response = s.post(url, headers=headers, data=data, timeout=timeout, verify=False)
-                if 0 <= response.status_code < 400:
-                    return response
+                # if 0 <= response.status_code < 500:
+                return response
             except Exception as e:
                 # message = traceback.format_exc()
                 message = str(e)
-                logger_error.error(e)
-                logger_error.error(traceback.format_exc())
+                # logger_error.error(e)
+                # logger_error.error(traceback.format_exc())
             # 间隔时间，单位为s
             elapsed_time = time.time() - start_time
             if elapsed_time >= while_timeout:
@@ -1115,20 +1036,21 @@ def send_request_with_retry(method, url, headers, data=None):
 
 
 def mid_task(platform_info_inst):
-    # 判断是否在不巡检的时间段
-    not_inspect_start_timeRange_hour = int(not_inspect_start_timeRange.split(":")[0])
-    not_inspect_start_timeRange_minute = int(not_inspect_start_timeRange.split(":")[1])
-    not_inspect_end_timeRange_hour = int(not_inspect_end_timeRange.split(":")[0])
-    not_inspect_end_timeRange_minute = int(not_inspect_end_timeRange.split(":")[1])
-    # 获取当前时间
-    now = datetime.datetime.now()
-    # 获取当前时间
-    current_time = now.time()
-    # 设置起始时间和结束时间
-    start_time = datetime.time(not_inspect_start_timeRange_hour, not_inspect_start_timeRange_minute)  # 09:00
-    end_time = datetime.time(not_inspect_end_timeRange_hour, not_inspect_end_timeRange_minute)  # 09:30
-    if start_time <= current_time <= end_time:
-        return
+    if not_inspect_start_timeRange and not_inspect_end_timeRange:
+        # 判断是否在不巡检的时间段
+        not_inspect_start_timeRange_hour = int(not_inspect_start_timeRange.split(":")[0])
+        not_inspect_start_timeRange_minute = int(not_inspect_start_timeRange.split(":")[1])
+        not_inspect_end_timeRange_hour = int(not_inspect_end_timeRange.split(":")[0])
+        not_inspect_end_timeRange_minute = int(not_inspect_end_timeRange.split(":")[1])
+        # 获取当前时间
+        now = datetime.datetime.now()
+        # 获取当前时间
+        current_time = now.time()
+        # 设置起始时间和结束时间
+        start_time = datetime.time(not_inspect_start_timeRange_hour, not_inspect_start_timeRange_minute)  # 09:00
+        end_time = datetime.time(not_inspect_end_timeRange_hour, not_inspect_end_timeRange_minute)  # 09:30
+        if start_time <= current_time <= end_time:
+            return
 
     # 开始巡检
     try:
@@ -1144,7 +1066,7 @@ def auto_delete_inspect_record():
     now = datetime.datetime.now()
     seven_days_ago = now - datetime.timedelta(days=10)
     seven_days_ago_str = seven_days_ago.strftime('%Y-%m-%d %H:%M:%S')
-    logger.info("seven_days_ago_str: ", seven_days_ago_str)
+    logger.info("seven_days_ago_str: %s", seven_days_ago_str)
 
     Inspect_Record.objects.extra(where=["inspect_time < %s"], params=[seven_days_ago_str]).delete()
     logger.info("删除10天前的巡检记录成功！")

@@ -1,3 +1,5 @@
+xd: 先理解数据库字段意思、业务和逻辑，不然很容易出bug
+
 1、定时任务插件安装了django_apscheduler和apscheduler，使用的是apscheduler
 
 2、项目依赖的包
