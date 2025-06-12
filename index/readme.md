@@ -3,6 +3,7 @@ xd: 先理解数据库字段意思、业务和逻辑，不然很容易出bug
 1、定时任务插件安装了django_apscheduler和apscheduler，使用的是apscheduler
 
 2、项目依赖的包
+pip3 install django==4.2.2
 pip3 install cryptography==3.4.7
 pip3 install django django_apscheduler pymysql requests django-cors-headers pyJWT urllib3==1.26.15 apscheduler
 
